@@ -1,4 +1,4 @@
-name: Ask CodeGPT for feedback
+name: Ask CodeGPT for review
 
 on:
   pull_request:
