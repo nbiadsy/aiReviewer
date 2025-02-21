@@ -3,7 +3,7 @@ name: Java Code Review
 on:
   pull_request:
     paths:
-      - '**.java'  # Runs only if Java files are changed
+      - '**.java'  # Only runs when Java files are modified
 
 jobs:
   review:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensures all branches and history are available
+          fetch-depth: 0  # Ensures we have full commit history
 
       - name: Get Changed Java Files
         id: changed_files
@@ -21,44 +21,54 @@ jobs:
           FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep '\.java$' || echo "")
           if [ -z "$FILES" ]; then
             echo "No Java files changed. Skipping review."
-            exit 0
+            echo "files_changed=false" >> "$GITHUB_ENV"
+          else
+            echo "files_changed=true" >> "$GITHUB_ENV"
+            echo "$FILES" > changed_files.txt
           fi
-          echo "FILES=$FILES" >> $GITHUB_ENV
 
       - name: Read Java Files Content
+        if: env.files_changed == 'true'
         run: |
+          echo "Gathering Java code for review..."
           REVIEW_CONTENT=""
-          for FILE in $FILES; do
-            CONTENT=$(cat "$FILE" | head -c 5000)  # Limit to 5000 characters
+          while IFS= read -r FILE; do
+            CONTENT=$(head -c 5000 "$FILE")  # Limit to 5000 characters
             REVIEW_CONTENT+="\n\n### File: $FILE\n\`\`\`java\n$CONTENT\n\`\`\`"
-          done
-          echo "REVIEW_CONTENT=$REVIEW_CONTENT" >> $GITHUB_ENV
+          done < changed_files.txt
+          echo "$REVIEW_CONTENT" > review_content.txt
 
       - name: Call OpenAI API for Code Review
-        id: ai_review
+        if: env.files_changed == 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          echo "Calling OpenAI API for code review..."
           RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -d '{
-              "model": "gpt-4-turbo",
-              "messages": [
-                {
-                  "role": "system",
-                  "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Be specific in your feedback."
-                },
-                {
-                  "role": "user",
-                  "content": "Please review the following Java code:\n\n'"$REVIEW_CONTENT"'"
-                }
-              ]
-            }' | jq -r '.choices[0].message.content')
-
-          echo "REVIEW_RESPONSE=$RESPONSE" >> $GITHUB_ENV
+            -d @- <<EOF
+          {
+            "model": "gpt-4-turbo",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Provide specific, actionable feedback."
+              },
+              {
+                "role": "user",
+                "content": "$(cat review_content.txt)"
+              }
+            ]
+          }
+          EOF
+          )
+          
+          echo "$RESPONSE" > response.json
+          echo "REVIEW_RESPONSE=$(jq -r '.choices[0].message.content' response.json)" >> "$GITHUB_ENV"
 
       - name: Post Review as PR Comment
+        if: env.files_changed == 'true'
         uses: mshick/add-pr-comment@v2
         with:
           message: |
