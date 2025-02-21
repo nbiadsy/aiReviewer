@@ -15,8 +15,8 @@ public class Main {
         System.out.println("x: " + x);
         System.out.println("y: " + y);
 
-        double v = x / y;
-        System.out.println("x/y: " + v);
+        double d = x / y;
+        System.out.println("x / y: " + d);
     }
 
 }
