@@ -13,7 +13,7 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{
-            "model": "gpt-4",
+            "model": "gpt-3.5",
             "prompt": "Review this Java code for best practices and security issues:\n\n$(cat src/**/*.java)",
             "max_tokens": 500
           }'
