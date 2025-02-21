@@ -1,4 +1,4 @@
-name: AI Code Review
+name: AI Code Reviewer
 
 on:
   pull_request:
@@ -40,3 +40,4 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
