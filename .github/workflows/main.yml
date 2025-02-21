@@ -34,9 +34,12 @@ jobs:
           REVIEW_CONTENT=""
           while IFS= read -r FILE; do
             CONTENT=$(head -c 5000 "$FILE")  # Limit to 5000 characters
-            REVIEW_CONTENT+="\n\n### File: $FILE\n\`\`\`java\n$CONTENT\n\`\`\`"
+            ESCAPED_CONTENT=$(jq -Rs . <<< "$CONTENT")  # Ensures valid JSON formatting
+            REVIEW_CONTENT+="{\"file\":\"$FILE\",\"content\":$ESCAPED_CONTENT},"
           done < changed_files.txt
-          echo "$REVIEW_CONTENT" > review_content.txt
+
+          REVIEW_CONTENT="[${REVIEW_CONTENT%,}]"  # Remove trailing comma and wrap in array
+          echo "$REVIEW_CONTENT" > review_content.json
 
       - name: Call OpenAI API for Code Review
         if: env.files_changed == 'true'
@@ -47,23 +50,21 @@ jobs:
           RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -d @- <<EOF
-          {
-            "model": "gpt-4-turbo",
-            "messages": [
-              {
-                "role": "system",
-                "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Provide specific, actionable feedback."
-              },
-              {
-                "role": "user",
-                "content": "$(cat review_content.txt)"
-              }
-            ]
-          }
-          EOF
+            -d "$(jq -n --argjson reviewContent "$(cat review_content.json)" '{
+              "model": "gpt-4-turbo",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Provide specific, actionable feedback."
+                },
+                {
+                  "role": "user",
+                  "content": $reviewContent
+                }
+              ]
+            }')"
           )
-          
+
           echo "🔍 Full API Response: $RESPONSE"  # Debugging output
           echo "$RESPONSE" > response.json
 
