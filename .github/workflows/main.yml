@@ -9,7 +9,7 @@ jobs:
 
       - name: Run AI Review
         run: |
-          curl -X POST "https://api.openai.com/v1/completions" \
+          curl -X POST "https://api.openai.com/v1/chat/completions" \
           -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{
