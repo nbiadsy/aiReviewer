@@ -9,12 +9,14 @@ public class Main {
 
     private static void randomDivision() {
         Random random = new Random();
-        double x = random.nextDouble(10);
-        double y = random.nextDouble(10);
+        double x = random.nextDouble(8);
+        double y = random.nextDouble(8);
 
         System.out.println("x: " + x);
         System.out.println("y: " + y);
-        System.out.println(x / y);
+
+        double v = x / y;
+        System.out.println("x/y: " + v);
     }
 
 }
