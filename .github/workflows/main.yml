@@ -1,28 +1,65 @@
-name: AI PR Review
-on: [pull_request]
+name: Java Code Review on PR
+
+on:
+  pull_request:
+    paths:
+      - '**.java'  # Runs when Java files are modified in a PR
+
 jobs:
-  ai_review:
+  review:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Run AI Review
+      - name: Find Changed Java Files
+        id: changed_files
         run: |
-          curl -X POST "https://api.openai.com/v1/chat/completions" \
-          -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "model": "gpt-4-turbo",
-            "max_tokens": 500,
-            "messages": [
-              {
-                "role": "system",
-                "content": "You are an experienced Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and adherence to best practices."
-              },
-              {
-                "role": "user",
-                "content": "Please review the following Java code and provide feedback on improvements, potential bugs, and optimizations:\n\n'"$CODE_CONTENT"'\n\nI’d like feedback on:\n1. **Performance**: Is recursion the best approach here, or should I use iteration?\n2. **Edge Cases**: Are there any edge cases I should consider?\n3. **Best Practices**: Does this follow Java coding conventions and best practices?"
-              }
-            ]
-          }' 
+          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep '\.java$' || echo "")
+          if [ -z "$FILES" ]; then
+            echo "No Java files changed. Skipping review."
+            exit 0
+          fi
+          echo "FILES=$FILES" >> $GITHUB_ENV
+
+      - name: Read Java Files Content
+        run: |
+          REVIEW_CONTENT=""
+          for FILE in $FILES; do
+            CONTENT=$(cat "$FILE" | jq -R -s .)
+            REVIEW_CONTENT+="\n\n### File: $FILE\n\`\`\`java\n$CONTENT\n\`\`\`"
+          done
+          echo "REVIEW_CONTENT=$REVIEW_CONTENT" >> $GITHUB_ENV
+
+      - name: Call OpenAI API for Code Review
+        id: ai_review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -d '{
+              "model": "gpt-4-turbo",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are an expert Java developer. Review the following Java code for correctness, performance, security vulnerabilities, and best practices."
+                },
+                {
+                  "role": "user",
+                  "content": "Please review the following Java code:\n\n'"$REVIEW_CONTENT"'"
+                }
+              ]
+            }' | jq -r '.choices[0].message.content')
+
+          echo "REVIEW_RESPONSE=$RESPONSE" >> $GITHUB_ENV
+
+      - name: Post Review as PR Comment
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            ## 🧐 AI Code Review
+            ${{ env.REVIEW_RESPONSE }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
