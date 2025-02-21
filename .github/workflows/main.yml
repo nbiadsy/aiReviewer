@@ -1,21 +1,23 @@
+name: AI Code Review
+
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  code_review_job:
+  ai_code_review:
     runs-on: ubuntu-latest
-    name: ChatGPT Code Review
+
     steps:
-      - name: GenAI Code Review
-        uses: cirolini/genai-code-review@v2
+      - name: AI Code Review
+        uses: AleksandrFurmenkovOfficial/ai-code-review@v0.4.1
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_pr_id: ${{ github.event.number }}
-          openai_model: "gpt-3.5-turbo" # optional
-          openai_temperature: 0.5 # optional
-          openai_max_tokens: 2048 # optional
-          mode: files # files or patch
-          language: en # optional, default is 'en'
-          custom_prompt: "" # optional
+          token: ${{ secrets.GITHUB_TOKEN }} # Token for accessing PRs, file reading, and commenting capabilities
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }} # Access to the GPT-4 class model
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          pr_number: ${{ github.event.number }}
+          include_extensions: ${{ steps.inputs.include_extensions }} # Optional, specify file types to include e.g., ".py,.js,.html"
+          exclude_extensions: ${{ steps.inputs.exclude_extensions }} # Optional, specify file types to exclude
+          include_paths: ${{ steps.inputs.include_paths }} # Optional, specify directories to include
+          exclude_paths: ${{ steps.inputs.exclude_paths }} # Optional, specify directories to exclude
