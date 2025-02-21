@@ -35,7 +35,7 @@ jobs:
           while IFS= read -r FILE; do
             CONTENT=$(head -c 5000 "$FILE")  # Limit to 5000 characters
             ESCAPED_CONTENT=$(jq -Rs . <<< "$CONTENT")  # Ensures valid JSON formatting
-            REVIEW_CONTENT+="{\"file\":\"$FILE\",\"content\":$ESCAPED_CONTENT},"
+            REVIEW_CONTENT+="{\"type\": \"text\", \"text\": \"### File: $FILE\n\`\`\`java\n$CONTENT\n\`\`\`\"},"
           done < changed_files.txt
 
           REVIEW_CONTENT="[${REVIEW_CONTENT%,}]"  # Remove trailing comma and wrap in array
@@ -55,7 +55,9 @@ jobs:
               "messages": [
                 {
                   "role": "system",
-                  "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Provide specific, actionable feedback."
+                  "content": [
+                    {"type": "text", "text": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Provide specific, actionable feedback."}
+                  ]
                 },
                 {
                   "role": "user",
