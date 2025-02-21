@@ -10,13 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository with Full History
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensures we have full commit history
 
       - name: Find Changed Java Files
         id: changed_files
         run: |
-          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep '\.java$' || echo "")
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+          echo "Comparing against base branch: $BASE_BRANCH"
+          FILES=$(git diff --name-only origin/$BASE_BRANCH | grep '\.java$' || echo "")
           if [ -z "$FILES" ]; then
             echo "No Java files changed. Skipping review."
             exit 0
