@@ -3,7 +3,7 @@ name: Java Code Review
 on:
   pull_request:
     paths:
-      - '**.java'  # Only runs when Java files are modified
+      - '**.java'  # Runs only if Java files are changed
 
 jobs:
   review:
@@ -64,8 +64,15 @@ jobs:
           EOF
           )
           
+          echo "🔍 Full API Response: $RESPONSE"  # Debugging output
           echo "$RESPONSE" > response.json
-          echo "REVIEW_RESPONSE=$(jq -r '.choices[0].message.content' response.json)" >> "$GITHUB_ENV"
+
+          REVIEW_OUTPUT=$(jq -r '.choices[0].message.content // "Error: No response from OpenAI."' response.json)
+          echo "REVIEW_RESPONSE=$REVIEW_OUTPUT" >> "$GITHUB_ENV"
+
+      - name: Debug OpenAI API Response
+        if: env.files_changed == 'true'
+        run: cat response.json || echo "No response.json file found"
 
       - name: Post Review as PR Comment
         if: env.files_changed == 'true'
