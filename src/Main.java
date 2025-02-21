@@ -13,6 +13,7 @@ public class Main {
         double y = random.nextDouble(8);
 
         System.out.println("x: " + x);
+        
         System.out.println("y: " + y);
 
         double d = x / y;

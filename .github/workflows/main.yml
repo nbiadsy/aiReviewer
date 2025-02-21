@@ -56,7 +56,7 @@ jobs:
                   "content": "Please review the following Java code:\n\n'"$REVIEW_CONTENT"'"
                 }
               ]
-            }' | jq -r '.choices[0].message.content')
+            }' | jq -r '.choices')
 
           echo "REVIEW_RESPONSE=$RESPONSE" >> $GITHUB_ENV
 
