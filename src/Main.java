@@ -10,13 +10,14 @@ public class Main {
     private static void randomDivision() {
         Random random = new Random();
         double x = random.nextDouble(8);
-        double y = random.nextDouble(8);
+        double y1 = random.nextDouble(8);
 
         System.out.println("x: " + x);
-        System.out.println("y: " + y);
+        System.out.println("y: " + y1);
 
-        double d = x / y;
+        double d = x / y1;
         System.out.println("x / y: " + d);
+
     }
 
 }
