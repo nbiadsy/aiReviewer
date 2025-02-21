@@ -2,22 +2,41 @@ name: AI Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize]
 
 jobs:
-  ai_code_review:
+  ai_review:
     runs-on: ubuntu-latest
 
     steps:
-      - name: AI Code Review
-        uses: AleksandrFurmenkovOfficial/ai-code-review@v0.4.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Token for accessing PRs, file reading, and commenting capabilities
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }} # Access to the GPT-4 class model
-          owner: ${{ github.repository_owner }}
-          repo: ${{ github.event.repository.name }}
-          pr_number: ${{ github.event.number }}
-          include_extensions: ${{ steps.inputs.include_extensions }} # Optional, specify file types to include e.g., ".py,.js,.html"
-          exclude_extensions: ${{ steps.inputs.exclude_extensions }} # Optional, specify file types to exclude
-          include_paths: ${{ steps.inputs.include_paths }} # Optional, specify directories to include
-          exclude_paths: ${{ steps.inputs.exclude_paths }} # Optional, specify directories to exclude
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Get PR Diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git diff origin/${{ github.event.pull_request.base.ref }} > pr_diff.txt
+
+      - name: Send Diff to OpenAI
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "gpt-4-turbo",
+              "messages": [
+                {"role": "system", "content": "You are a code reviewer. Provide feedback on code changes."},
+                {"role": "user", "content": "'"$(cat pr_diff.txt)"'"}
+              ]
+            }')
+
+          echo "$RESPONSE" > ai_feedback.json
+
+      - name: Post AI Review to PR
+        run: |
+          COMMENT=$(jq -r '.choices[0].message.content' ai_feedback.json)
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
