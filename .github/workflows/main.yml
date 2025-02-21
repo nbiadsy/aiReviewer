@@ -1,26 +1,24 @@
-name: Java Code Review on PR
+name: Java Code Review
 
 on:
   pull_request:
     paths:
-      - '**.java'  # Runs when Java files are modified in a PR
+      - '**.java'  # Runs only if Java files are changed
 
 jobs:
   review:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository with Full History
+      - name: Checkout Repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensures we have full commit history
+          fetch-depth: 0  # Ensures all branches and history are available
 
-      - name: Find Changed Java Files
+      - name: Get Changed Java Files
         id: changed_files
         run: |
-          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
-          echo "Comparing against base branch: $BASE_BRANCH"
-          FILES=$(git diff --name-only origin/$BASE_BRANCH | grep '\.java$' || echo "")
+          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep '\.java$' || echo "")
           if [ -z "$FILES" ]; then
             echo "No Java files changed. Skipping review."
             exit 0
@@ -31,7 +29,7 @@ jobs:
         run: |
           REVIEW_CONTENT=""
           for FILE in $FILES; do
-            CONTENT=$(cat "$FILE" | jq -R -s .)
+            CONTENT=$(cat "$FILE" | head -c 5000)  # Limit to 5000 characters
             REVIEW_CONTENT+="\n\n### File: $FILE\n\`\`\`java\n$CONTENT\n\`\`\`"
           done
           echo "REVIEW_CONTENT=$REVIEW_CONTENT" >> $GITHUB_ENV
@@ -49,14 +47,14 @@ jobs:
               "messages": [
                 {
                   "role": "system",
-                  "content": "You are an expert Java developer. Review the following Java code for correctness, performance, security vulnerabilities, and best practices."
+                  "content": "You are an expert Java developer. Review the following Java code for correctness, efficiency, security vulnerabilities, and best practices. Be specific in your feedback."
                 },
                 {
                   "role": "user",
                   "content": "Please review the following Java code:\n\n'"$REVIEW_CONTENT"'"
                 }
               ]
-            }' | jq -r '.choices')
+            }' | jq -r '.choices[0].message.content')
 
           echo "REVIEW_RESPONSE=$RESPONSE" >> $GITHUB_ENV
 
@@ -64,6 +62,6 @@ jobs:
         uses: mshick/add-pr-comment@v2
         with:
           message: |
-            ## 🧐 AI Code Review
+            ## 🤖 AI Code Review
             ${{ env.REVIEW_RESPONSE }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
