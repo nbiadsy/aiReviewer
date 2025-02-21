@@ -1,34 +1,13 @@
-name: Java Code Review with OpenAI
-
-on:
-  push:
-    paths:
-      - '**.java'  # Triggers only when Java files are modified
-  workflow_dispatch:  # Allows manual execution
-
+name: AI PR Review
+on: [ pull_request ]
 jobs:
-  code_review:
+  ai_review:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Extract Java Code
-        run: |
-          FILE=$(git diff --name-only HEAD^ | grep '\.java$' | head -n 1)
-          if [ -z "$FILE" ]; then
-            echo "No Java file changes detected."
-            exit 0
-          fi
-          echo "Reviewing file: $FILE"
-          echo '```java' > code_snippet.txt
-          cat "$FILE" >> code_snippet.txt
-          echo '```' >> code_snippet.txt
-
-      - name: Call OpenAI API for Code Review
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Run AI Review
         run: |
           CODE_CONTENT=$(cat code_snippet.txt | jq -R -s .)
           curl -s https://api.openai.com/v1/chat/completions \
@@ -46,7 +25,4 @@ jobs:
                   "content": "Please review the following Java code and provide feedback on improvements, potential bugs, and optimizations:\n\n'"$CODE_CONTENT"'\n\nI’d like feedback on:\n1. **Performance**: Is recursion the best approach here, or should I use iteration?\n2. **Edge Cases**: Are there any edge cases I should consider?\n3. **Best Practices**: Does this follow Java coding conventions and best practices?"
                 }
               ]
-            }' | jq . > review_output.json
-
-      - name: Display API Response
-        run: cat review_output.json
+            }'
